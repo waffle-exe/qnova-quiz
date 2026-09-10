@@ -101,6 +101,24 @@
         .rank-3 { background-color: var(--bronze); border-left: 4px solid #cd7f32; font-weight: bold; }
 
         .timestamp { font-size: 12px; color: var(--text-muted); }
+
+        /* Status Badges */
+        .badge-clean {
+            background-color: rgba(30, 142, 62, 0.15);
+            color: var(--success);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-cheat {
+            background-color: rgba(217, 48, 37, 0.15);
+            color: var(--danger);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -122,12 +140,13 @@
                 <th>Player Name</th>
                 <th>Score (/25)</th>
                 <th>Time Taken</th>
+                <th>Status</th>
                 <th>Submitted At</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody id="leaderboard-body">
-            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Connecting to database...</td></tr>
+            <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Connecting to database...</td></tr>
         </tbody>
     </table>
 </div>
@@ -194,7 +213,7 @@
         tbody.innerHTML = "";
 
         if (results.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No submissions yet.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No submissions yet.</td></tr>`;
             return;
         }
 
@@ -205,6 +224,12 @@
             else if (index === 1) { rowClass = "rank-2"; medal = "🥈 "; }
             else if (index === 2) { rowClass = "rank-3"; medal = "🥉 "; }
 
+            // Cheating logic verification
+            const isCheater = res.cheated === true || (res.tabSwitches && res.tabSwitches > 0);
+            const statusBadge = isCheater 
+                ? `<span class="badge-cheat">⚠️ Cheated</span>` 
+                : `<span class="badge-clean">Clean</span>`;
+
             let tr = document.createElement("tr");
             if(rowClass) tr.className = rowClass.trim();
             
@@ -214,6 +239,7 @@
                 <td>${res.player}</td>
                 <td style="color: var(--success); font-weight: bold;">${res.score}</td>
                 <td>${formatTime(res.timeTaken)}</td>
+                <td>${statusBadge}</td>
                 <td class="timestamp">${formatDate(res.timestamp)}</td>
                 <td>
                     <button class="btn-delete" data-id="${res.id}">Delete</button>
@@ -253,15 +279,17 @@
 
         let csvContent = "data:text/csv;charset=utf-8,";
         // CSV Headers
-        csvContent += "Rank,Team,Player,Score,Time Taken (Seconds),Submitted At\n";
+        csvContent += "Rank,Team,Player,Score,Time Taken (Seconds),Status,Submitted At\n";
 
         globalResults.forEach((res, index) => {
+            const isCheater = res.cheated === true || (res.tabSwitches && res.tabSwitches > 0);
             const row = [
                 index + 1,
                 `"${res.team.replace(/"/g, '""')}"`, // Escape quotes
                 `"${res.player.replace(/"/g, '""')}"`,
                 res.score,
                 res.timeTaken,
+                isCheater ? "Cheated" : "Clean",
                 `"${res.timestamp}"`
             ].join(",");
             csvContent += row + "\n";
