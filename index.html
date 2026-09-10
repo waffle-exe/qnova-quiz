@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master's Physics & Astrophysics Quiz</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1c;
+            --card-bg: #222327;
+            --card-hover: #2d2f34;
+            --text-main: #e8eaed;
+            --text-muted: #9aa0a6;
+            --accent: #8ab4f8;
+            --btn-bg: #8ab4f8;
+            --btn-text: #202124;
+            --danger: #f28b82;
+            --gold: rgba(255, 215, 0, 0.15);
+            --silver: rgba(192, 192, 192, 0.15);
+            --bronze: rgba(205, 127, 50, 0.15);
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Screens */
+        #setup-screen, #quiz-screen, #result-screen, #blocked-screen { display: none; width: 100%; }
+        #setup-screen { display: block; margin-top: 50px; }
+        #blocked-screen { text-align: center; margin-top: 100px; }
+
+        h1, h2, h3 { font-weight: 500; }
+        
+        /* Inputs & Setup */
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 14px; }
+        .input-group input { 
+            width: 100%; padding: 12px; font-size: 16px; 
+            background: var(--card-bg); border: 1px solid #3c4043; 
+            color: white; border-radius: 8px; box-sizing: border-box;
+        }
+        .input-group input:focus { outline: none; border-color: var(--accent); }
+
+        /* Quiz Header */
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #3c4043;
+            margin-bottom: 30px;
+        }
+        #timer { color: var(--danger); font-weight: bold; font-size: 18px; }
+        #progress { color: var(--text-muted); font-size: 16px; }
+
+        /* Question UI */
+        .question-label { color: var(--text-muted); font-size: 14px; margin-bottom: 15px; font-weight: 500; }
+        .question-text { font-size: 18px; line-height: 1.6; margin-bottom: 30px; }
+        
+        .options { display: flex; flex-direction: column; gap: 12px; }
+        .option-card {
+            background-color: var(--card-bg);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 16px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+            transition: background 0.2s, border 0.2s;
+        }
+        .option-card:hover { background-color: var(--card-hover); }
+        .option-card.selected { border-color: var(--accent); background-color: rgba(138, 180, 248, 0.1); }
+        .option-letter { font-weight: bold; margin-right: 15px; width: 25px; }
+        input[type="radio"] { display: none; }
+
+        /* Buttons */
+        .btn-container { display: flex; justify-content: space-between; margin-top: 40px; gap: 15px; }
+        .btn {
+            background: var(--btn-bg); color: var(--btn-text);
+            border: none; padding: 14px 24px; font-size: 16px; font-weight: 600;
+            border-radius: 8px; cursor: pointer; transition: opacity 0.2s;
+            flex: 1; text-align: center;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-outline { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+        .btn-outline:hover { background: rgba(138, 180, 248, 0.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        #submitBtn { background: #81c995; color: #202124; display: none; }
+
+        /* Leaderboard */
+        .leaderboard { margin-top: 30px; width: 100%; border-collapse: collapse; }
+        .leaderboard th, .leaderboard td { text-align: left; padding: 14px 12px; border-bottom: 1px solid #3c4043; }
+        .leaderboard th { color: var(--text-muted); font-size: 14px; }
+        
+        /* Top 3 Ranks Highlights */
+        .rank-1 { background-color: var(--gold); border-left: 4px solid gold; font-weight: bold; }
+        .rank-2 { background-color: var(--silver); border-left: 4px solid silver; font-weight: bold; }
+        .rank-3 { background-color: var(--bronze); border-left: 4px solid #cd7f32; font-weight: bold; }
+        .is-me { border-bottom: 2px solid var(--accent) !important; }
+
+        @media (max-width: 600px) {
+            .question-text { font-size: 16px; }
+            .option-card { padding: 14px 16px; font-size: 14px; }
+            .btn-container { flex-direction: column-reverse; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <!-- Blocked Screen -->
+    <div id="blocked-screen">
+        <h1 style="color: var(--danger); font-size: 40px; margin-bottom: 10px;">⛔ Access Denied</h1>
+        <p style="color: var(--text-muted); font-size: 18px; line-height: 1.5;">
+            Your device or IP has already attempted this quiz. <br> Multiple attempts are strictly prohibited.
+        </p>
+    </div>
+
+    <!-- Setup Screen -->
+    <div id="setup-screen">
+        <h2 style="font-size: 28px; margin-bottom: 10px;">Master's Championship</h2>
+        <p style="color: var(--text-muted); margin-bottom: 30px; line-height: 1.5;">
+            <strong>Rules:</strong> 25 analytical questions. 15 minutes total. Rankings live-update based on highest score, then fastest time. <br><br>
+            <span style="color: var(--danger);">⚠️ Warning: Refreshing, changing tabs, or minimizing the window will lock you out permanently.</span>
+        </p>
+        
+        <div class="input-group">
+            <label>Player Name</label>
+            <input type="text" id="playerName" placeholder="e.g. Jane Doe" required>
+        </div>
+        <div class="input-group">
+            <label>Team Name</label>
+            <input type="text" id="teamName" placeholder="e.g. Quantum Quasars" required>
+        </div>
+        <button class="btn" id="startBtn" style="margin-top: 10px;">Start Quiz</button>
+    </div>
+
+    <!-- Quiz Screen -->
+    <div id="quiz-screen">
+        <div class="quiz-header">
+            <div id="progress">Question 1 / 25</div>
+            <div id="timer">15:00</div>
+        </div>
+        
+        <div id="question-container"></div>
+
+        <div class="btn-container">
+            <button class="btn btn-outline" id="prevBtn" style="display: none;">Back</button>
+            <button class="btn" id="nextBtn">Next</button>
+            <button class="btn" id="submitBtn">Submit Quiz</button>
+        </div>
+    </div>
+
+    <!-- Result / Leaderboard Screen -->
+    <div id="result-screen">
+        <h2 style="color: #81c995;">Quiz Submitted!</h2>
+        <p id="score-display" style="font-size: 20px; font-weight: bold; margin-bottom: 5px;"></p>
+        <p id="time-display" style="color: var(--text-muted); margin-bottom: 30px;"></p>
+        
+        <h3>Live Leaderboard 🏆</h3>
+        <table class="leaderboard" id="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Team</th>
+                    <th>Player</th>
+                    <th>Score</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboard-body">
+                <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading live rankings...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+    import { getDatabase, ref, push, onValue, get, child } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCut-Qi7scoHnjHyE8UBuN53PHWnMMKqSE",
+        authDomain: "sitee-f6a0c.firebaseapp.com",
+        databaseURL: "https://sitee-f6a0c-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "sitee-f6a0c",
+        storageBucket: "sitee-f6a0c.firebasestorage.app",
+        messagingSenderId: "284183052545",
+        appId: "1:284183052545:web:ef85ecc7be844cede8db00",
+        measurementId: "G-HZHS31QH07"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // SECURITY CHECK: Run immediately on page load
+    if (localStorage.getItem("quizLockedOut") === "true") {
+        document.getElementById("setup-screen").style.display = "none";
+        document.getElementById("blocked-screen").style.display = "block";
+    }
+
+    const questions = [
+        { q: "Calculus: What is the derivative of f(x) = e^(2x) with respect to x?", options: ["e^(2x)", "2e^(2x)", "0.5e^(2x)", "xe^(2x-1)"], ans: 1 },
+        { q: "Quantum Mechanics: What is the fundamental exchange particle of the electromagnetic force?", options: ["Gluon", "Graviton", "Photon", "W Boson"], ans: 2 },
+        { q: "Physics: For a system with varying mass (like a rocket), Newton's second law is most accurately expressed as:", options: ["F = m * a", "F = dp/dt", "F = 0.5 * m * v^2", "F = GmM / r^2"], ans: 1 },
+        { q: "Discrete Math: What is the cardinality of the power set for a set containing 'n' elements?", options: ["2^n", "n^2", "n!", "2n"], ans: 0 },
+        { q: "History of Science: Who formulated the empirical laws of planetary motion using Tycho Brahe's observational data?", options: ["Galileo Galilei", "Isaac Newton", "Johannes Kepler", "Nicolaus Copernicus"], ans: 2 },
+        { q: "AGN Physics: In a Seyfert 1 galaxy, assuming the Broad Line Region (BLR) clouds are virialized (M ∝ v²R). If the H-beta line width is doubled but the continuum luminosity (and thus BLR radius R) remains constant, how does the estimated Black Hole mass change?", options: ["Increases by factor of 2", "Increases by factor of 4", "Decreases by half", "Remains unchanged"], ans: 1 },
+        { q: "Galactic Dynamics: The rotation curve of a spiral galaxy is observed to be completely flat (v(r) = const) at large radii. What does this mathematically imply about the enclosed dark matter mass M(r)?", options: ["M(r) ∝ r", "M(r) ∝ r^2", "M(r) ∝ r^(-1)", "M(r) is constant"], ans: 0 },
+        { q: "AGN Physics: If an Active Galactic Nucleus is accreting at the Eddington limit with a fixed radiative efficiency, how does the Eddington mass accretion rate scale with the Black Hole mass M?", options: ["Inversely proportional (1/M)", "Proportional to M^2", "Linearly proportional (M)", "Independent of M"], ans: 2 },
+        { q: "Galactic Dynamics: A star is in a circular orbit in a spherical density distribution modeled as ρ(r) ∝ r^(-2) (an isothermal sphere). The orbital circular velocity v_c depends on radius r as:", options: ["v_c ∝ r", "v_c ∝ r^(-1/2)", "v_c ∝ r^(-1)", "v_c is independent of r"], ans: 3 },
+        { q: "AGN Jets: Superluminal motion is observed in an AGN jet moving at physical speed v = βc at an angle θ to the line of sight. The maximum apparent transverse speed is observed when:", options: ["cos(θ) = β", "sin(θ) = β", "tan(θ) = β", "θ = 90 degrees"], ans: 0 },
+        { q: "Astrophysics: The Bondi accretion rate for a black hole of mass M immersed in a uniform gas cloud scales with the ambient sound speed (c_s) as:", options: ["c_s^(-3)", "c_s^2", "c_s^(-2)", "c_s^3"], ans: 0 },
+        { q: "Quantum Mechanics: A particle in a 1D infinite potential well of width L has ground state energy E0. If the well's width is compressed to L/2, what is the new ground state energy?", options: ["E0 / 2", "2 * E0", "4 * E0", "E0 / 4"], ans: 2 },
+        { q: "Statistical Mechanics: For an ultra-relativistic ideal Fermi gas (where E ≈ pc) at zero temperature in 3D, how does the Fermi energy E_F scale with the number density n?", options: ["E_F ∝ n", "E_F ∝ n^(1/3)", "E_F ∝ n^(2/3)", "E_F ∝ n^(1/2)"], ans: 1 },
+        { q: "Special Relativity: A spaceship travels at v = 0.8c relative to Earth and fires a laser pulse forward. What is the speed of the laser pulse as measured by an observer on Earth?", options: ["1.8c", "0.8c", "c", "0.2c"], ans: 2 },
+        { q: "Mechanics: A solid sphere, a solid cylinder, and a hollow pipe (all of equal mass and radius) roll down an incline without slipping. Which reaches the bottom first?", options: ["Solid cylinder", "Hollow pipe", "Solid sphere", "They all tie"], ans: 2 },
+        { q: "Electrodynamics: According to the Larmor formula, the power radiated by a non-relativistic point charge scales with its acceleration 'a' as:", options: ["a", "a^2", "a^3", "sqrt(a)"], ans: 1 },
+        { q: "Quantum Mechanics: Evaluate the quantum commutator [x, p^2], where x is position and p is momentum operator.", options: ["i * hbar * p", "2i * hbar * p", "0", "-2i * hbar * p"], ans: 1 },
+        { q: "Thermodynamics: A Carnot engine operates between T_H = 600 K and T_C = 300 K. If the engine extracts 1000 J of heat from the hot reservoir, what is the network done?", options: ["250 J", "300 J", "500 J", "1000 J"], ans: 2 },
+        { q: "Cosmology: By solving the Friedmann equations for a flat, purely matter-dominated universe, the cosmic scale factor a(t) evolves with time as:", options: ["a(t) ∝ t^(1/2)", "a(t) ∝ t^(2/3)", "a(t) ∝ e^(Ht)", "a(t) ∝ t"], ans: 1 },
+        { q: "Cosmology: How does the critical density of the universe (ρ_c) scale with the Hubble parameter (H)?", options: ["ρ_c ∝ H", "ρ_c ∝ H^2", "ρ_c ∝ H^(1/2)", "ρ_c ∝ H^3"], ans: 1 },
+        { q: "Solid State Physics: In the Debye model for specific heat of solids at very low temperatures (T << Debye Temperature), the specific heat C_v scales as:", options: ["T", "T^2", "T^3", "exp(-1/T)"], ans: 2 },
+        { q: "Particle Physics: Which fundamental interaction is exclusively responsible for flavor-changing processes, such as a strange quark converting into an up quark?", options: ["Strong Nuclear Force", "Electromagnetism", "Weak Nuclear Force", "Gravity"], ans: 2 },
+        { q: "Calculus: Evaluate the definite integral of f(x) = x^3 * cos(x) from x = -π to x = π.", options: ["π^3 / 3", "0", "2π", "1"], ans: 1 },
+        { q: "Optics / Observational Astro: The Rayleigh criterion for the angular resolution θ of a telescope with aperture diameter D observing at wavelength λ is mathematically given by:", options: ["θ = λ / (1.22 * D)", "θ = 1.22 * (λ / D)", "θ = 1.22 * (D / λ)", "θ = (λ * D) / 1.22"], ans: 1 },
+        { q: "Astrophysics: The derivation of the Chandrasekhar mass limit crucially depends on the pressure support derived from the equation of state of which type of matter?", options: ["Non-relativistic ideal gas", "Relativistic degenerate electron gas", "Neutron degenerate gas", "Quark-gluon plasma"], ans: 1 }
+    ];
+
+    const TOTAL_TIME = 900; 
+    let timeRemaining = TOTAL_TIME;
+    let timerInterval;
+    let playerName = "";
+    let teamName = "";
+    let quizSubmitted = false;
+    let currentQuestionIndex = 0;
+    
+    let userAnswers = new Array(questions.length).fill(null);
+
+    const setupScreen = document.getElementById("setup-screen");
+    const quizScreen = document.getElementById("quiz-screen");
+    const resultScreen = document.getElementById("result-screen");
+    const qContainer = document.getElementById("question-container");
+    const progressText = document.getElementById("progress");
+    const timerText = document.getElementById("timer");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const submitBtn = document.getElementById("submitBtn");
+
+    document.getElementById("startBtn").addEventListener("click", async () => {
+        playerName = document.getElementById("playerName").value.trim();
+        teamName = document.getElementById("teamName").value.trim();
+        const startBtn = document.getElementById("startBtn");
+        
+        if (!playerName || !teamName) {
+            alert("Please enter both Player Name and Team Name!");
+            return;
+        }
+
+        startBtn.innerText = "Checking...";
+        startBtn.disabled = true;
+
+        // Firebase validation: check if name is already in DB
+        try {
+            const dbRef = ref(db);
+            const snapshot = await get(child(dbRef, `quizResults`));
+            let alreadyTaken = false;
+
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                for (let key in data) {
+                    // Check if player name (case-insensitive) already submitted
+                    if (data[key].player.toLowerCase() === playerName.toLowerCase()) {
+                        alreadyTaken = true;
+                        break;
+                    }
+                }
+            }
+
+            if (alreadyTaken) {
+                alert(`The name "${playerName}" has already submitted a quiz. Multiple attempts are not allowed.`);
+                startBtn.innerText = "Start Quiz";
+                startBtn.disabled = false;
+                return;
+            }
+
+        } catch(e) {
+            console.error("Verification failed", e);
+        }
+        
+        // Lock Device Locally
+        localStorage.setItem("quizLockedOut", "true");
+
+        setupScreen.style.display = "none";
+        quizScreen.style.display = "block";
+        startTimer();
+        renderQuestion();
+    });
+
+    function formatTime(seconds) {
+        let m = Math.floor(seconds / 60);
+        let s = seconds % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            timeRemaining--;
+            timerText.innerText = formatTime(timeRemaining);
+            
+            if (timeRemaining <= 0) {
+                clearInterval(timerInterval);
+                alert("Time is up! Auto-submitting quiz.");
+                submitQuiz();
+            }
+        }, 1000);
+    }
+
+    const letters = ["A", "B", "C", "D"];
+
+    function renderQuestion() {
+        const qData = questions[currentQuestionIndex];
+        progressText.innerText = `Question ${currentQuestionIndex + 1} / ${questions.length}`;
+        
+        let html = `
+            <div class="question-label">Question ${currentQuestionIndex + 1}</div>
+            <div class="question-text">${qData.q}</div>
+            <div class="options">
+        `;
+        
+        qData.options.forEach((opt, idx) => {
+            const isSelected = userAnswers[currentQuestionIndex] === idx ? 'selected' : '';
+            html += `
+                <label class="option-card ${isSelected}" onclick="selectOption(${idx})">
+                    <input type="radio" name="q" value="${idx}">
+                    <span class="option-letter">${letters[idx]}.</span>
+                    <span class="option-text">${opt}</span>
+                </label>
+            `;
+        });
+        
+        html += `</div>`;
+        qContainer.innerHTML = html;
+
+        prevBtn.style.display = currentQuestionIndex === 0 ? "none" : "block";
+        if (currentQuestionIndex === questions.length - 1) {
+            nextBtn.style.display = "none";
+            submitBtn.style.display = "block";
+        } else {
+            nextBtn.style.display = "block";
+            submitBtn.style.display = "none";
+        }
+    }
+
+    window.selectOption = function(optIndex) {
+        userAnswers[currentQuestionIndex] = optIndex;
+        renderQuestion();
+    }
+
+    prevBtn.addEventListener("click", () => {
+        if (currentQuestionIndex > 0) {
+            currentQuestionIndex--;
+            renderQuestion();
+        }
+    });
+
+    nextBtn.addEventListener("click", () => {
+        if (currentQuestionIndex < questions.length - 1) {
+            currentQuestionIndex++;
+            renderQuestion();
+        }
+    });
+
+    // Anti-Cheat
+    document.addEventListener("visibilitychange", () => {
+        if (quizScreen.style.display === "block" && document.hidden && !quizSubmitted) {
+            alert("Anti-Cheat: Tab change detected! Auto-submitting and locking device.");
+            submitQuiz();
+        }
+    });
+    window.addEventListener("blur", () => {
+        if (quizScreen.style.display === "block" && !quizSubmitted) {
+            alert("Anti-Cheat: Window unfocused! Auto-submitting and locking device.");
+            submitQuiz();
+        }
+    });
+
+    submitBtn.addEventListener("click", () => {
+        if(confirm("Are you sure you want to submit? Check if you have answered all questions.")) {
+            submitQuiz();
+        }
+    });
+
+    async function submitQuiz() {
+        if (quizSubmitted) return;
+        quizSubmitted = true;
+        clearInterval(timerInterval);
+        
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Submitting...";
+
+        let score = 0;
+        userAnswers.forEach((ans, index) => {
+            if (ans === questions[index].ans) score++;
+        });
+
+        const timeTakenSeconds = TOTAL_TIME - timeRemaining;
+
+        try {
+            const dbRef = ref(db, 'quizResults');
+            await push(dbRef, {
+                player: playerName,
+                team: teamName,
+                score: score,
+                timeTaken: timeTakenSeconds,
+                timestamp: new Date().toISOString()
+            });
+
+            quizScreen.style.display = "none";
+            resultScreen.style.display = "block";
+            
+            document.getElementById("score-display").innerText = `Your Score: ${score} / ${questions.length}`;
+            document.getElementById("time-display").innerText = `Time Taken: ${formatTime(timeTakenSeconds)}`;
+            
+            loadLeaderboard();
+        } catch (error) {
+            console.error(error);
+            alert("Error saving result.");
+            quizSubmitted = false;
+        }
+    }
+
+    function loadLeaderboard() {
+        const dbRef = ref(db, 'quizResults');
+        onValue(dbRef, (snapshot) => {
+            const data = snapshot.val();
+            let results = [];
+            for (let key in data) {
+                results.push(data[key]);
+            }
+
+            results.sort((a, b) => {
+                if (b.score !== a.score) {
+                    return b.score - a.score;
+                }
+                return a.timeTaken - b.timeTaken;
+            });
+
+            const tbody = document.getElementById("leaderboard-body");
+            tbody.innerHTML = "";
+
+            results.forEach((res, index) => {
+                let rowClass = "";
+                let medal = "";
+                if (index === 0) { rowClass = "rank-1"; medal = "🥇 "; }
+                else if (index === 1) { rowClass = "rank-2"; medal = "🥈 "; }
+                else if (index === 2) { rowClass = "rank-3"; medal = "🥉 "; }
+
+                if (res.player === playerName && res.team === teamName) {
+                    rowClass += " is-me";
+                }
+                
+                let tr = document.createElement("tr");
+                if(rowClass) tr.className = rowClass.trim();
+                
+                tr.innerHTML = `
+                    <td>${medal}#${index + 1}</td>
+                    <td>${res.team}</td>
+                    <td>${res.player}</td>
+                    <td><strong>${res.score}</strong></td>
+                    <td>${formatTime(res.timeTaken)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+    }
+</script>
+</body>
+</html>
