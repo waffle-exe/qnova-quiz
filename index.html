@@ -15,6 +15,7 @@
             --btn-bg: #8ab4f8;
             --btn-text: #202124;
             --danger: #f28b82;
+            --success: #81c995;
             --gold: rgba(255, 215, 0, 0.15);
             --silver: rgba(192, 192, 192, 0.15);
             --bronze: rgba(205, 127, 50, 0.15);
@@ -115,6 +116,24 @@
         .rank-3 { background-color: var(--bronze); border-left: 4px solid #cd7f32; font-weight: bold; }
         .is-me { border-bottom: 2px solid var(--accent) !important; }
 
+        /* Status Badges */
+        .badge-clean {
+            background-color: rgba(129, 201, 149, 0.2);
+            color: var(--success);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-cheat {
+            background-color: rgba(242, 139, 130, 0.2);
+            color: var(--danger);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
         @media (max-width: 600px) {
             .question-text { font-size: 16px; }
             .option-card { padding: 14px 16px; font-size: 14px; }
@@ -184,10 +203,11 @@
                     <th>Player</th>
                     <th>Score</th>
                     <th>Time</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody id="leaderboard-body">
-                <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading live rankings...</td></tr>
+                <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading live rankings...</td></tr>
             </tbody>
         </table>
     </div>
@@ -253,6 +273,7 @@
     let teamName = "";
     let quizSubmitted = false;
     let currentQuestionIndex = 0;
+    let hasCheated = false; // Flag to track cheating state
     
     let userAnswers = new Array(questions.length).fill(null);
 
@@ -288,7 +309,6 @@
             if (snapshot.exists()) {
                 const data = snapshot.val();
                 for (let key in data) {
-                    // Check if player name (case-insensitive) already submitted
                     if (data[key].player.toLowerCase() === playerName.toLowerCase()) {
                         alreadyTaken = true;
                         break;
@@ -390,15 +410,17 @@
         }
     });
 
-    // Anti-Cheat
+    // Anti-Cheat: Set flag and trigger submission
     document.addEventListener("visibilitychange", () => {
         if (quizScreen.style.display === "block" && document.hidden && !quizSubmitted) {
+            hasCheated = true;
             alert("Anti-Cheat: Tab change detected! Auto-submitting and locking device.");
             submitQuiz();
         }
     });
     window.addEventListener("blur", () => {
         if (quizScreen.style.display === "block" && !quizSubmitted) {
+            hasCheated = true;
             alert("Anti-Cheat: Window unfocused! Auto-submitting and locking device.");
             submitQuiz();
         }
@@ -432,6 +454,7 @@
                 team: teamName,
                 score: score,
                 timeTaken: timeTakenSeconds,
+                cheated: hasCheated, // Flag pushed to Firebase
                 timestamp: new Date().toISOString()
             });
 
@@ -478,6 +501,11 @@
                 if (res.player === playerName && res.team === teamName) {
                     rowClass += " is-me";
                 }
+
+                // Render status badge based on cheated flag
+                const statusBadge = res.cheated === true 
+                    ? `<span class="badge-cheat">⚠️ Cheated</span>` 
+                    : `<span class="badge-clean">Clean</span>`;
                 
                 let tr = document.createElement("tr");
                 if(rowClass) tr.className = rowClass.trim();
@@ -488,6 +516,7 @@
                     <td>${res.player}</td>
                     <td><strong>${res.score}</strong></td>
                     <td>${formatTime(res.timeTaken)}</td>
+                    <td>${statusBadge}</td>
                 `;
                 tbody.appendChild(tr);
             });
