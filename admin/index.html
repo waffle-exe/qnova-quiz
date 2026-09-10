@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal - Quiz Leaderboard</title>
+    <style>
+        :root {
+            /* Light Theme Variables */
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --card-hover: #f8f9fa;
+            --text-main: #202124;
+            --text-muted: #5f6368;
+            --accent: #1a73e8;
+            --danger: #d93025;
+            --success: #1e8e3e;
+            --border-color: #dadce0;
+            /* Slightly adjusted medal background opacities for light mode */
+            --gold: rgba(255, 215, 0, 0.25);
+            --silver: rgba(192, 192, 192, 0.35);
+            --bronze: rgba(205, 127, 50, 0.25);
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* Softer shadow for light mode */
+            border: 1px solid var(--border-color);
+        }
+
+        .header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        h1 { margin: 0; font-weight: 500; color: var(--accent); }
+        
+        .stats {
+            color: var(--text-muted);
+            font-size: 16px;
+            margin-top: 5px;
+        }
+
+        .btn {
+            background: var(--success);
+            color: #ffffff; /* White text for contrast */
+            border: none;
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .btn:hover { background: #166c2e; }
+        
+        .btn-delete {
+            background: transparent;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            box-shadow: none;
+        }
+        .btn-delete:hover {
+            background: rgba(217, 48, 37, 0.08); /* Light red hover */
+        }
+
+        /* Leaderboard */
+        .leaderboard { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .leaderboard th, .leaderboard td { 
+            text-align: left; 
+            padding: 14px 12px; 
+            border-bottom: 1px solid var(--border-color); 
+        }
+        .leaderboard th { color: var(--text-muted); font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* Top 3 Ranks Highlights */
+        .rank-1 { background-color: var(--gold); border-left: 4px solid #fbbc04; font-weight: bold; }
+        .rank-2 { background-color: var(--silver); border-left: 4px solid #bdc1c6; font-weight: bold; }
+        .rank-3 { background-color: var(--bronze); border-left: 4px solid #cd7f32; font-weight: bold; }
+
+        .timestamp { font-size: 12px; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-flex">
+        <div>
+            <h1>Admin Control Panel</h1>
+            <div class="stats" id="total-participants">Total Participants: 0</div>
+        </div>
+        <button class="btn" id="exportBtn">⬇ Export to CSV</button>
+    </div>
+
+    <table class="leaderboard" id="leaderboard-table">
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Team Name</th>
+                <th>Player Name</th>
+                <th>Score (/25)</th>
+                <th>Time Taken</th>
+                <th>Submitted At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Connecting to database...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+    import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCut-Qi7scoHnjHyE8UBuN53PHWnMMKqSE",
+        authDomain: "sitee-f6a0c.firebaseapp.com",
+        databaseURL: "https://sitee-f6a0c-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "sitee-f6a0c",
+        storageBucket: "sitee-f6a0c.firebasestorage.app",
+        messagingSenderId: "284183052545",
+        appId: "1:284183052545:web:ef85ecc7be844cede8db00",
+        measurementId: "G-HZHS31QH07"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, 'quizResults');
+    
+    let globalResults = [];
+
+    function formatTime(seconds) {
+        let m = Math.floor(seconds / 60);
+        let s = seconds % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    // Format ISO string to readable date
+    function formatDate(isoString) {
+        if (!isoString) return "N/A";
+        const d = new Date(isoString);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' - ' + d.toLocaleDateString();
+    }
+
+    // Listen for real-time updates
+    onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        let results = [];
+        
+        for (let key in data) {
+            results.push({
+                id: key, // Store the firebase push key for deletion
+                ...data[key]
+            });
+        }
+
+        // Exact same sorting logic as the front-end
+        results.sort((a, b) => {
+            if (b.score !== a.score) {
+                return b.score - a.score; // Highest score first
+            }
+            return a.timeTaken - b.timeTaken; // Lowest time first if tied
+        });
+
+        globalResults = results;
+        document.getElementById("total-participants").innerText = `Total Participants: ${results.length}`;
+
+        const tbody = document.getElementById("leaderboard-body");
+        tbody.innerHTML = "";
+
+        if (results.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No submissions yet.</td></tr>`;
+            return;
+        }
+
+        results.forEach((res, index) => {
+            let rowClass = "";
+            let medal = "";
+            if (index === 0) { rowClass = "rank-1"; medal = "🥇 "; }
+            else if (index === 1) { rowClass = "rank-2"; medal = "🥈 "; }
+            else if (index === 2) { rowClass = "rank-3"; medal = "🥉 "; }
+
+            let tr = document.createElement("tr");
+            if(rowClass) tr.className = rowClass.trim();
+            
+            tr.innerHTML = `
+                <td>${medal}#${index + 1}</td>
+                <td>${res.team}</td>
+                <td>${res.player}</td>
+                <td style="color: var(--success); font-weight: bold;">${res.score}</td>
+                <td>${formatTime(res.timeTaken)}</td>
+                <td class="timestamp">${formatDate(res.timestamp)}</td>
+                <td>
+                    <button class="btn-delete" data-id="${res.id}">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Attach event listeners to all delete buttons
+        document.querySelectorAll('.btn-delete').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                deleteEntry(id);
+            });
+        });
+    });
+
+    // Delete Entry Function
+    function deleteEntry(id) {
+        if(confirm("Are you sure you want to delete this entry? This action cannot be undone and will permanently remove them from the live leaderboard.")) {
+            const entryRef = ref(db, 'quizResults/' + id);
+            remove(entryRef).then(() => {
+                console.log("Entry deleted successfully.");
+            }).catch((error) => {
+                console.error("Error deleting entry: ", error);
+                alert("Error deleting entry. Check permissions.");
+            });
+        }
+    }
+
+    // Export to CSV Function
+    document.getElementById("exportBtn").addEventListener("click", () => {
+        if (globalResults.length === 0) {
+            alert("No data to export.");
+            return;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        // CSV Headers
+        csvContent += "Rank,Team,Player,Score,Time Taken (Seconds),Submitted At\n";
+
+        globalResults.forEach((res, index) => {
+            const row = [
+                index + 1,
+                `"${res.team.replace(/"/g, '""')}"`, // Escape quotes
+                `"${res.player.replace(/"/g, '""')}"`,
+                res.score,
+                res.timeTaken,
+                `"${res.timestamp}"`
+            ].join(",");
+            csvContent += row + "\n";
+        });
+
+        // Trigger download
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "quiz_leaderboard.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+</script>
+</body>
+</html>
